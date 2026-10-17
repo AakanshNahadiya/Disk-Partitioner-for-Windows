@@ -1,0 +1,48 @@
+<Window x:Class="DiskPartitioner.Views.FormatPartitionDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Format Partition"
+        Height="360" Width="480"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{StaticResource WindowBackgroundBrush}">
+
+    <Border Padding="20">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Format Volume / Partition" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,10"/>
+
+            <TextBlock Grid.Row="1" x:Name="txtPartitionInfo" Text="Partition Details" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,16"/>
+
+            <StackPanel Grid.Row="2" Margin="0,0,0,12">
+                <TextBlock Text="File System:" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                <ComboBox x:Name="cmbFileSystem" Padding="8,6" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" AutomationProperties.Name="File System">
+                    <ComboBoxItem Content="NTFS" IsSelected="True"/>
+                    <ComboBoxItem Content="FAT32"/>
+                    <ComboBoxItem Content="exFAT"/>
+                </ComboBox>
+            </StackPanel>
+
+            <StackPanel Grid.Row="3" Margin="0,0,0,12">
+                <TextBlock Text="Volume Label:" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                <TextBox x:Name="txtLabel" Padding="8,6" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" AutomationProperties.Name="Volume Label"/>
+            </StackPanel>
+
+            <CheckBox Grid.Row="4" x:Name="chkQuickFormat" Content="Perform a quick format" IsChecked="True" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,0"/>
+
+            <DockPanel Grid.Row="6" LastChildFill="False" Margin="0,16,0,0">
+                <Button x:Name="btnFormat" Content="Format" Padding="16,8" DockPanel.Dock="Right" Background="{StaticResource AccentBrush}" Foreground="#FFFFFF" FontWeight="SemiBold" Click="BtnFormat_Click"/>
+                <Button x:Name="btnCancel" Content="Cancel" Padding="16,8" DockPanel.Dock="Right" Margin="0,0,10,0" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" IsCancel="True" Click="BtnCancel_Click"/>
+            </DockPanel>
+        </Grid>
+    </Border>
+</Window>

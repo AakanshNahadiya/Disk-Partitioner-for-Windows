@@ -1,0 +1,275 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Net.Http;
+using System.Reflection;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using DiskPartitioner.Helpers;
+using Microsoft.Win32;
+
+namespace DiskPartitioner.Services
+{
+    public class UpdateInfo
+    {
+        public bool IsSuccess { get; set; } = true;
+        public bool HasUpdate { get; set; } = false;
+        public string CurrentVersion { get; set; } = "1.0.0";
+        public string LatestVersion { get; set; } = "1.0.0";
+        public string ReleaseName { get; set; } = string.Empty;
+        public string ReleaseNotes { get; set; } = string.Empty;
+        public string HtmlUrl { get; set; } = "https://github.com/AakanshNahadiya/Disk-Partitioner-for-Windows";
+        public string? DownloadUrl { get; set; }
+        public string Message { get; set; } = string.Empty;
+
+        public string GetEffectiveReleaseUrl()
+        {
+            if (!string.IsNullOrWhiteSpace(HtmlUrl) && HtmlUrl.Contains("/releases", StringComparison.OrdinalIgnoreCase))
+            {
+                return HtmlUrl;
+            }
+            string ver = string.IsNullOrWhiteSpace(LatestVersion) ? CurrentVersion : LatestVersion;
+            return $"https://github.com/AakanshNahadiya/Disk-Partitioner-for-Windows/releases/tag/v{ver}";
+        }
+    }
+
+    public interface IUpdateService
+    {
+        Task<UpdateInfo> CheckForUpdatesAsync(CancellationToken cancellationToken = default);
+        string GetCurrentVersion();
+        bool IsAutoCheckEnabled();
+        void SetAutoCheckEnabled(bool enabled);
+        bool ShouldPerformDailyCheck();
+        void RecordCheckPerformed();
+        bool HasNotifiedForVersion(string version);
+        void RecordVersionNotified(string version);
+        void OpenUrl(string url);
+    }
+
+    public class UpdateService : IUpdateService
+    {
+        public const string RepoOwner = "AakanshNahadiya";
+        public const string RepoName = "Disk-Partitioner-for-Windows";
+        public const string ReleasesApiUrl = "https://api.github.com/repos/AakanshNahadiya/Disk-Partitioner-for-Windows/releases/latest";
+        public const string RepoWebUrl = "https://github.com/AakanshNahadiya/Disk-Partitioner-for-Windows";
+
+        private const string RegistrySubKey = @"Software\AccessibleTools\DiskPartitioner";
+        private const string RegAutoCheck = "AutoCheckUpdates";
+        private const string RegLastCheckUtc = "LastUpdateCheckUtc";
+        private const string RegLastNotifiedVersion = "LastNotifiedVersion";
+
+        private readonly HttpClient _httpClient;
+
+        public UpdateService(HttpClient? httpClient = null)
+        {
+            _httpClient = httpClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            if (!_httpClient.DefaultRequestHeaders.Contains("User-Agent"))
+            {
+                _httpClient.DefaultRequestHeaders.Add("User-Agent", "DiskPartitioner-UpdateChecker");
+            }
+            if (!_httpClient.DefaultRequestHeaders.Contains("Accept"))
+            {
+                _httpClient.DefaultRequestHeaders.Add("Accept", "application/vnd.github.v3+json");
+            }
+        }
+
+        public string GetCurrentVersion()
+        {
+            var version = Assembly.GetExecutingAssembly().GetName().Version;
+            return version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "1.0.0";
+        }
+
+        public bool IsAutoCheckEnabled()
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(RegistrySubKey);
+                if (key != null)
+                {
+                    object? val = key.GetValue(RegAutoCheck);
+                    if (val is int intVal)
+                    {
+                        return intVal == 1;
+                    }
+                }
+            }
+            catch { }
+            return true; // Enabled by default
+        }
+
+        public void SetAutoCheckEnabled(bool enabled)
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.CreateSubKey(RegistrySubKey);
+                key?.SetValue(RegAutoCheck, enabled ? 1 : 0, RegistryValueKind.DWord);
+            }
+            catch { }
+        }
+
+        public bool ShouldPerformDailyCheck()
+        {
+            if (!IsAutoCheckEnabled()) return false;
+
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(RegistrySubKey);
+                if (key != null)
+                {
+                    string? lastStr = key.GetValue(RegLastCheckUtc) as string;
+                    if (!string.IsNullOrWhiteSpace(lastStr) && DateTime.TryParse(lastStr, null, System.Globalization.DateTimeStyles.RoundtripKind, out var lastUtc))
+                    {
+                        return (DateTime.UtcNow - lastUtc).TotalHours >= 24;
+                    }
+                }
+            }
+            catch { }
+
+            return true; // Check if never checked before
+        }
+
+        public void RecordCheckPerformed()
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.CreateSubKey(RegistrySubKey);
+                key?.SetValue(RegLastCheckUtc, DateTime.UtcNow.ToString("O"), RegistryValueKind.String);
+            }
+            catch { }
+        }
+
+        public bool HasNotifiedForVersion(string version)
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(RegistrySubKey);
+                if (key != null)
+                {
+                    string? notified = key.GetValue(RegLastNotifiedVersion) as string;
+                    return string.Equals(notified, version, StringComparison.OrdinalIgnoreCase);
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        public void RecordVersionNotified(string version)
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.CreateSubKey(RegistrySubKey);
+                key?.SetValue(RegLastNotifiedVersion, version ?? string.Empty, RegistryValueKind.String);
+            }
+            catch { }
+        }
+
+        public async Task<UpdateInfo> CheckForUpdatesAsync(CancellationToken cancellationToken = default)
+        {
+            string currentVerStr = GetCurrentVersion();
+            var info = new UpdateInfo
+            {
+                CurrentVersion = currentVerStr,
+                LatestVersion = currentVerStr,
+                HtmlUrl = RepoWebUrl
+            };
+
+            try
+            {
+                using var response = await _httpClient.GetAsync(ReleasesApiUrl, cancellationToken).ConfigureAwait(false);
+
+                // If repo does not have releases yet (404), gracefully report up to date
+                if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    info.IsSuccess = true;
+                    info.HasUpdate = false;
+                    info.Message = "Disk Partitioner for Windows is up to date.";
+                    info.HtmlUrl = $"{RepoWebUrl}/releases/tag/v{currentVerStr}";
+                    return info;
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    info.IsSuccess = false;
+                    info.Message = $"Could not retrieve update information from GitHub (HTTP {(int)response.StatusCode}).";
+                    return info;
+                }
+
+                string json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+
+                string rawTag = root.TryGetProperty("tag_name", out var tagElem) ? tagElem.GetString() ?? "" : "";
+                string cleanTag = TextSanitizer.SanitizeLabel(rawTag.TrimStart('v', 'V').Trim());
+                info.LatestVersion = cleanTag;
+
+                info.ReleaseName = TextSanitizer.SanitizeSpeech(root.TryGetProperty("name", out var nameElem) ? nameElem.GetString() ?? "" : cleanTag);
+                info.ReleaseNotes = TextSanitizer.StripAnsiAndControl(root.TryGetProperty("body", out var bodyElem) ? bodyElem.GetString() ?? "" : "", preserveLineBreaks: true);
+                string defaultTagUrl = !string.IsNullOrWhiteSpace(rawTag) ? $"{RepoWebUrl}/releases/tag/{rawTag}" : $"{RepoWebUrl}/releases";
+                info.HtmlUrl = root.TryGetProperty("html_url", out var htmlElem) ? htmlElem.GetString() ?? defaultTagUrl : defaultTagUrl;
+
+                // Look for downloadable .exe asset
+                if (root.TryGetProperty("assets", out var assetsElem) && assetsElem.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var asset in assetsElem.EnumerateArray())
+                    {
+                        if (asset.TryGetProperty("name", out var assetNameElem) &&
+                            assetNameElem.GetString()?.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) == true &&
+                            asset.TryGetProperty("browser_download_url", out var dlElem))
+                        {
+                            info.DownloadUrl = dlElem.GetString();
+                            break;
+                        }
+                    }
+                }
+
+                // Version Comparison
+                if (Version.TryParse(currentVerStr, out var currentVer) && Version.TryParse(cleanTag, out var latestVer))
+                {
+                    info.HasUpdate = latestVer > currentVer;
+                }
+                else
+                {
+                    info.HasUpdate = string.Compare(cleanTag, currentVerStr, StringComparison.OrdinalIgnoreCase) > 0;
+                }
+
+                info.IsSuccess = true;
+                info.Message = info.HasUpdate
+                    ? $"A new version (v{cleanTag}) is available."
+                    : "Disk Partitioner for Windows is up to date.";
+
+                return info;
+            }
+            catch (OperationCanceledException)
+            {
+                info.IsSuccess = false;
+                info.Message = "The update check was cancelled.";
+                return info;
+            }
+            catch (Exception ex)
+            {
+                info.IsSuccess = false;
+                info.Message = $"Unable to connect to GitHub. Please check your internet connection.";
+                Debug.WriteLine($"Update check exception: {ex.Message}");
+                return info;
+            }
+        }
+
+        public void OpenUrl(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return;
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to open URL '{url}': {ex.Message}");
+            }
+        }
+    }
+}

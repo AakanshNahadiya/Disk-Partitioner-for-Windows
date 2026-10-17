@@ -1,0 +1,73 @@
+<Window x:Class="DiskPartitioner.Views.CreatePartitionDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Create New Primary Partition"
+        Height="450" Width="520"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{StaticResource WindowBackgroundBrush}">
+
+    <Border Padding="20">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Create Primary Partition" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,10"/>
+
+            <TextBlock Grid.Row="1" x:Name="txtSpaceInfo" Text="Unallocated Space Details" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,16"/>
+
+            <StackPanel Grid.Row="2" Margin="0,0,0,12">
+                <TextBlock Text="Partition Size:" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="90"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="txtSizeValue" Grid.Column="0" Padding="8,6" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" AutomationProperties.Name="Partition size"/>
+                    <ComboBox x:Name="cmbSizeUnit" Grid.Column="1" Margin="8,0,0,0" Padding="8,6" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" SelectionChanged="CmbSizeUnit_SelectionChanged" AutomationProperties.Name="Partition size unit">
+                        <ComboBoxItem Content="GB"/>
+                        <ComboBoxItem Content="MB"/>
+                    </ComboBox>
+                    <Button Grid.Column="2" x:Name="btnMax" Content="Max Size" Padding="12,6" Margin="8,0,0,0" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" Click="BtnMax_Click" AutomationProperties.Name="Maximum size"/>
+                </Grid>
+            </StackPanel>
+
+            <StackPanel Grid.Row="3" Margin="0,0,0,12">
+                <TextBlock Text="Assign Drive Letter:" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                <ComboBox x:Name="cmbDriveLetter" Padding="8,6" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" AutomationProperties.Name="Assign Drive Letter"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="4" Margin="0,0,0,12">
+                <TextBlock Text="File System:" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                <ComboBox x:Name="cmbFileSystem" Padding="8,6" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" SelectionChanged="CmbFileSystem_SelectionChanged" AutomationProperties.Name="File System">
+                    <ComboBoxItem Content="NTFS" IsSelected="True"/>
+                    <ComboBoxItem Content="FAT32"/>
+                    <ComboBoxItem Content="exFAT"/>
+                    <ComboBoxItem Content="Do not format"/>
+                </ComboBox>
+            </StackPanel>
+
+            <StackPanel Grid.Row="5" Margin="0,0,0,8">
+                <TextBlock Text="Volume Label:" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+                <TextBox x:Name="txtLabel" Text="New Volume" Padding="8,6" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" AutomationProperties.Name="Volume Label"/>
+            </StackPanel>
+
+            <CheckBox Grid.Row="6" x:Name="chkQuickFormat" Content="Perform a quick format" IsChecked="True" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,12"/>
+
+            <DockPanel Grid.Row="8" LastChildFill="False" Margin="0,16,0,0">
+                <Button x:Name="btnCreate" Content="Create Partition" Padding="16,8" DockPanel.Dock="Right" Background="{StaticResource AccentBrush}" Foreground="#FFFFFF" FontWeight="SemiBold" Click="BtnCreate_Click"/>
+                <Button x:Name="btnCancel" Content="Cancel" Padding="16,8" DockPanel.Dock="Right" Margin="0,0,10,0" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" IsCancel="True" Click="BtnCancel_Click"/>
+            </DockPanel>
+        </Grid>
+    </Border>
+</Window>

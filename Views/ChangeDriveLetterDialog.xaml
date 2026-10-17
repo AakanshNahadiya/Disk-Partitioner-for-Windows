@@ -1,0 +1,36 @@
+<Window x:Class="DiskPartitioner.Views.ChangeDriveLetterDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Assign or Change Drive Letter"
+        Height="340" Width="480"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{StaticResource WindowBackgroundBrush}">
+
+    <Border Padding="20">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Assign or Change Drive Letter" FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,10"/>
+
+            <TextBlock Grid.Row="1" x:Name="txtPartitionInfo" Text="Partition Details" FontSize="13" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,16"/>
+
+            <RadioButton Grid.Row="2" x:Name="rbAssign" Content="Assign the following drive letter:" IsChecked="True" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,8" Checked="RbMode_Changed"/>
+            <ComboBox Grid.Row="3" x:Name="cmbDriveLetters" Margin="24,0,0,16" Padding="8,6" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" AutomationProperties.Name="Drive Letter"/>
+
+            <RadioButton Grid.Row="4" x:Name="rbRemove" Content="Remove current drive letter" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,0" VerticalAlignment="Top" Checked="RbMode_Changed"/>
+
+            <DockPanel Grid.Row="5" LastChildFill="False" Margin="0,16,0,0">
+                <Button x:Name="btnApply" Content="Apply" Padding="16,8" DockPanel.Dock="Right" Background="{StaticResource AccentBrush}" Foreground="#FFFFFF" FontWeight="SemiBold" Click="BtnApply_Click"/>
+                <Button x:Name="btnCancel" Content="Cancel" Padding="16,8" DockPanel.Dock="Right" Margin="0,0,10,0" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" IsCancel="True" Click="BtnCancel_Click"/>
+            </DockPanel>
+        </Grid>
+    </Border>
+</Window>

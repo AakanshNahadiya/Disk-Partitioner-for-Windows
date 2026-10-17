@@ -1,0 +1,40 @@
+# Build results & binaries
+[Bb]in/
+[Oo]bj/
+publish/
+[Tt]est[Rr]esults/
+
+# Inno Setup output
+Installer/Output/
+*.exe
+*.msi
+
+# Visual Studio & IDE files
+.vs/
+.vscode/
+.idea/
+*.user
+*.userosv
+*.suo
+*.sln.docstates
+*.DotSettings.user
+
+# NuGet packages
+packages/
+*.nuget.props
+*.nuget.targets
+
+# Crash dumps & logs
+*.log
+*.tmp
+*.cache
+*.bak
+*.swp
+*.dmp
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+.DS_Store

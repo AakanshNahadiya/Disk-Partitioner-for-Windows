@@ -1,0 +1,37 @@
+<Window x:Class="DiskPartitioner.Views.WipeConfirmationDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Confirm Clean / Wipe Disk"
+        Height="360" Width="550"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{StaticResource WindowBackgroundBrush}">
+
+    <Border Padding="20">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="PERMANENT DATA ERASURE WARNING" FontSize="16" FontWeight="Bold" Foreground="#E06C75" Margin="0,0,0,10"/>
+
+            <TextBlock Grid.Row="1" x:Name="txtDiskInfo" Text="Disk Details" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" Margin="0,0,0,8"/>
+
+            <TextBlock Grid.Row="2" Text="Cleaning this disk will permanently erase all partitions, volumes, and stored data. This action CANNOT be undone." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+            <StackPanel Grid.Row="3" VerticalAlignment="Top">
+                <TextBlock Text="To proceed, type CONFIRM in the box below:" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                <TextBox x:Name="txtConfirmation" Padding="8,6" FontSize="14" FontWeight="SemiBold" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" TextChanged="TxtConfirmation_TextChanged" AutomationProperties.Name="Confirmation. Type CONFIRM to proceed"/>
+            </StackPanel>
+
+            <DockPanel Grid.Row="4" LastChildFill="False" Margin="0,16,0,0">
+                <Button x:Name="btnClean" Content="Clean Disk Now" IsEnabled="False" Padding="16,8" DockPanel.Dock="Right" Background="#983E3E" Foreground="#FFFFFF" FontWeight="SemiBold" Click="BtnClean_Click"/>
+                <Button x:Name="btnCancel" Content="Cancel" Padding="16,8" DockPanel.Dock="Right" Margin="0,0,10,0" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" IsCancel="True" Click="BtnCancel_Click"/>
+            </DockPanel>
+        </Grid>
+    </Border>
+</Window>

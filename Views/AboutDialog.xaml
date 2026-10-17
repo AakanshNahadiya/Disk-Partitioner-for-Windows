@@ -1,0 +1,34 @@
+<Window x:Class="DiskPartitioner.Views.AboutDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="About Disk Partitioner for Windows"
+        Height="360" Width="480"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="{StaticResource WindowBackgroundBrush}">
+
+    <Border Padding="20">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Disk Partitioner for Windows" FontSize="18" FontWeight="Bold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,4"/>
+            <TextBlock Grid.Row="1" Text="Version 1.0.0 by Accessible Tools" FontSize="12" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" Margin="0,0,0,16"/>
+
+            <StackPanel Grid.Row="2">
+                <TextBlock Text="An ultra-lightweight, high-performance, 100% accessible disk partition manager and DiskPart front-end for Windows." FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                <TextBlock Text="Key Principles:" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
+                <TextBlock Text="Hard OS drive shielding against accidental destruction." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                <TextBlock Text="Direct NVDA speech integration with zero audio clutter or SAPI conflicts." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                <TextBlock Text="Zero background footprint: terminates immediately on close." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+                <TextBlock Text="Live in-place storage updates preserving screen reader cursor focus." FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,4"/>
+            </StackPanel>
+
+            <Button Grid.Row="3" x:Name="btnClose" Content="Close" Padding="16,8" HorizontalAlignment="Right" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" IsCancel="True" Click="BtnClose_Click"/>
+        </Grid>
+    </Border>
+</Window>

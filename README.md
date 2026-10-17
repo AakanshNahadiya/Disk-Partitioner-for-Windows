@@ -65,12 +65,12 @@ Disk Partitioner for Windows gives you the full power of DiskPart inside a clean
 ## Installation
 
 1. Go to the Releases page on GitHub: https://github.com/AakanshNahadiya/Disk-Partitioner-for-Windows/releases
-2. Download the latest installer (DiskPartitioner\_Setup\_v1.0.0.exe).
+2. Download the latest installer (DiskPartitioner_Setup_v1.0.0.exe).
 3. Run the installer and follow the standard setup steps.
 
 ## Feedback and Contributions
 
 If you find a bug, have a feature request, or want to suggest an improvement for screen reader accessibility, please open an issue on the GitHub repository.
 
-> \*\*Disclaimer:\*\* This application is created by using Google's Antigravity AI assistant.
+> **Disclaimer:** This application is created by using Google's Antigravity AI assistant.
 

@@ -264,11 +264,16 @@ namespace DiskPartitioner.Services
             if (string.IsNullOrWhiteSpace(url)) return;
             try
             {
-                Process.Start(new ProcessStartInfo
+                // Validate that URL is an absolute HTTP/HTTPS address to prevent protocol handler injection (CWE-88)
+                if (Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+                    (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp))
                 {
-                    FileName = url,
-                    UseShellExecute = true
-                });
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = uri.AbsoluteUri,
+                        UseShellExecute = true
+                    });
+                }
             }
             catch (Exception ex)
             {

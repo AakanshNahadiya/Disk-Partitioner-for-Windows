@@ -79,6 +79,8 @@
                         <Separator/>
                         <MenuItem Header="_Check for Updates..." Click="MenuCheckForUpdates_Click"/>
                         <MenuItem Header="_View on GitHub" Click="MenuViewOnGitHub_Click"/>
+                        <MenuItem Header="_Create Issue and Report Bug on GitHub" Click="MenuReportIssue_Click"/>
+                        <MenuItem Header="_Privacy Policy" Click="MenuPrivacyPolicy_Click"/>
                         <Separator/>
                         <MenuItem Header="_About Disk Partitioner" Click="MenuAbout_Click"/>
                     </MenuItem>
@@ -127,7 +129,7 @@
                              BorderThickness="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
-                             AutomationProperties.Name="Physical Disks List"
+                             AutomationProperties.Name="Physical Disks"
                              SelectionChanged="LstDisks_SelectionChanged"
                              PreviewKeyDown="LstDisks_PreviewKeyDown">
                         <ListBox.ItemContainerStyle>
@@ -196,7 +198,7 @@
                              BorderThickness="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
-                             AutomationProperties.Name="Partitions and Volumes List"
+                             AutomationProperties.Name="Partitions and Volumes"
                              SelectionChanged="LstPartitions_SelectionChanged"
                              PreviewKeyDown="LstPartitions_PreviewKeyDown">
                         <ListBox.ItemContainerStyle>

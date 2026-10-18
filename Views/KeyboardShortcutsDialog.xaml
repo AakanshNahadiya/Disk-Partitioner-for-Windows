@@ -21,7 +21,7 @@
                      Background="Transparent"
                      BorderThickness="0"
                      Padding="8"
-                     AutomationProperties.Name="Keyboard Shortcuts List">
+                     AutomationProperties.Name="Keyboard Shortcuts">
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem">
                         <Setter Property="AutomationProperties.Name" Value="{Binding SpeechText}"/>

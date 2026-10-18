@@ -128,14 +128,7 @@ namespace DiskPartitioner.Helpers
             public bool IncursSeekPenalty; // false = SSD, true = HDD
         }
 
-        [StructLayout(LayoutKind.Sequential)]
-        public struct DEVICE_TRIM_DESCRIPTOR
-        {
-            public uint Version;
-            public uint Size;
-            [MarshalAs(UnmanagedType.I1)]
-            public bool TrimEnabled;
-        }
+
 
         [StructLayout(LayoutKind.Sequential)]
         public struct STORAGE_DEVICE_DESCRIPTOR
@@ -347,109 +340,7 @@ namespace DiskPartitioner.Helpers
             return null;
         }
 
-        /// <summary>
-        /// Queries whether TRIM is enabled on the physical drive.
-        /// </summary>
-        public static bool? QueryDiskTrim(int diskIndex)
-        {
-            if (diskIndex < 0) return null;
-            try
-            {
-                string path = $@"\\.\PhysicalDrive{diskIndex}";
-                using var handle = CreateFile(
-                    path,
-                    0,
-                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                    IntPtr.Zero,
-                    OPEN_EXISTING,
-                    0,
-                    IntPtr.Zero);
 
-                if (!handle.IsInvalid)
-                {
-                    var query = new STORAGE_PROPERTY_QUERY
-                    {
-                        PropertyId = 8, // StorageDeviceTrimProperty
-                        QueryType = 0,  // PropertyStandardQuery
-                        AdditionalParameters = new byte[1]
-                    };
-                    int qSize = Marshal.SizeOf(typeof(STORAGE_PROPERTY_QUERY));
-                    IntPtr inBuf = Marshal.AllocHGlobal(qSize);
-                    Marshal.StructureToPtr(query, inBuf, false);
-                    int outSize = Marshal.SizeOf(typeof(DEVICE_TRIM_DESCRIPTOR));
-                    IntPtr outBuf = Marshal.AllocHGlobal(outSize);
-                    try
-                    {
-                        if (DeviceIoControl(handle, IOCTL_STORAGE_QUERY_PROPERTY, inBuf, (uint)qSize, outBuf, (uint)outSize, out _, IntPtr.Zero))
-                        {
-                            var desc = Marshal.PtrToStructure<DEVICE_TRIM_DESCRIPTOR>(outBuf);
-                            return desc.TrimEnabled;
-                        }
-                    }
-                    finally
-                    {
-                        Marshal.FreeHGlobal(inBuf);
-                        Marshal.FreeHGlobal(outBuf);
-                    }
-                }
-            }
-            catch { }
-            return null;
-        }
-
-        /// <summary>
-        /// Queries the live partition style (MBR vs GPT) using IOCTL_DISK_GET_DRIVE_LAYOUT_EX.
-        /// </summary>
-        public static string QueryLivePartitionStyle(int diskIndex)
-        {
-            if (diskIndex < 0) return string.Empty;
-            try
-            {
-                string devicePath = $@"\\.\PhysicalDrive{diskIndex}";
-                using var handle = CreateFile(
-                    devicePath,
-                    0, // dwDesiredAccess = 0 (Query access without requiring admin elevation)
-                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                    IntPtr.Zero,
-                    OPEN_EXISTING,
-                    0,
-                    IntPtr.Zero);
-
-                if (!handle.IsInvalid)
-                {
-                    int bufferSize = 4096;
-                    IntPtr buffer = Marshal.AllocHGlobal(bufferSize);
-                    try
-                    {
-                        if (DeviceIoControl(
-                            handle,
-                            IOCTL_DISK_GET_DRIVE_LAYOUT_EX,
-                            IntPtr.Zero,
-                            0,
-                            buffer,
-                            (uint)bufferSize,
-                            out uint bytesReturned,
-                            IntPtr.Zero) && bytesReturned >= 4)
-                        {
-                            int partitionStyle = Marshal.ReadInt32(buffer);
-                            return partitionStyle switch
-                            {
-                                0 => "MBR (Master Boot Record)",
-                                1 => "GPT (GUID Partition Table)",
-                                2 => "RAW (Unpartitioned)",
-                                _ => string.Empty
-                            };
-                        }
-                    }
-                    finally
-                    {
-                        Marshal.FreeHGlobal(buffer);
-                    }
-                }
-            }
-            catch { }
-            return string.Empty;
-        }
 
         /// <summary>
         /// Queries the device hardware model, bus type, and removable media status via IOCTL_STORAGE_QUERY_PROPERTY.

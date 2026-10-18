@@ -71,21 +71,11 @@ namespace DiskPartitioner
                 _hwndSource = HwndSource.FromHwnd(helper.Handle);
                 _hwndSource?.AddHook(WndProc);
 
-                // Immediately announce to screen reader that app is loaded and ready
-                Announce("Disk Partitioner for Windows ready.");
+                // Announce to screen reader that app is loaded and ready
+                Announce("Disk Partitioner for Windows ready.", interrupt: false);
 
-                // Launch storage discovery asynchronously in background without freezing UI
+                // Launch storage discovery asynchronously in background; initial focus lands on first disk once populated
                 _ = RefreshStorageTopologyAsync(isSilent: true);
-
-                // Explicitly land cursor on physical disks list so NVDA focuses first list on startup
-                _ = Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
-                {
-                    lstDisks.Focus();
-                    if (lstDisks.SelectedIndex >= 0 && lstDisks.ItemContainerGenerator.ContainerFromIndex(lstDisks.SelectedIndex) is ListBoxItem item)
-                    {
-                        item.Focus();
-                    }
-                });
             };
 
             StateChanged += (s, e) =>
@@ -213,21 +203,20 @@ namespace DiskPartitioner
                     _isInitialLoad = false;
                     _ = Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
                     {
-                        lstDisks.Focus();
-                        if (lstDisks.SelectedIndex >= 0 && lstDisks.ItemContainerGenerator.ContainerFromIndex(lstDisks.SelectedIndex) is ListBoxItem item)
-                        {
-                            item.Focus();
-                        }
+                        FocusListBoxItem(lstDisks);
                     });
 
                     // Flush initial JIT, WMI query allocations, and presentation buffers once window and list are loaded
                     _ = Dispatcher.BeginInvoke(DispatcherPriority.Background, async () =>
                     {
-                        await Task.Delay(400);
+                        await Task.Delay(600);
                         TrimProcessMemory();
 
                         await Task.Delay(2000);
                         CheckForDailyUpdatesInBackground();
+
+                        await Task.Delay(1500);
+                        TrimProcessMemory();
                     });
                 }
                 else if (!isSilent)
@@ -236,11 +225,7 @@ namespace DiskPartitioner
                     {
                         if (!lstPartitions.IsKeyboardFocusWithin && !IsMenuFocusedOrActive())
                         {
-                            lstDisks.Focus();
-                            if (lstDisks.SelectedIndex >= 0 && lstDisks.ItemContainerGenerator.ContainerFromIndex(lstDisks.SelectedIndex) is ListBoxItem item)
-                            {
-                                item.Focus();
-                            }
+                            FocusListBoxItem(lstDisks);
                         }
                     });
 
@@ -327,6 +312,61 @@ namespace DiskPartitioner
             }
         }
 
+        private void FocusListBoxItem(ListBox listBox)
+        {
+            if (listBox == null) return;
+
+            void ApplyFocus()
+            {
+                listBox.Focus();
+                if (listBox.Items.Count > 0)
+                {
+                    if (listBox.SelectedIndex < 0) listBox.SelectedIndex = 0;
+                    if (listBox.SelectedItem != null)
+                    {
+                        listBox.ScrollIntoView(listBox.SelectedItem);
+                    }
+                    listBox.UpdateLayout();
+
+                    var container = (listBox.ItemContainerGenerator.ContainerFromItem(listBox.SelectedItem)
+                        ?? (listBox.SelectedIndex >= 0 ? listBox.ItemContainerGenerator.ContainerFromIndex(listBox.SelectedIndex) : null)) as ListBoxItem;
+
+                    if (container != null)
+                    {
+                        container.Focus();
+                        Keyboard.Focus(container);
+                    }
+                    else
+                    {
+                        Keyboard.Focus(listBox);
+                    }
+                }
+                else
+                {
+                    Keyboard.Focus(listBox);
+                }
+            }
+
+            if (listBox.ItemContainerGenerator.Status == System.Windows.Controls.Primitives.GeneratorStatus.ContainersGenerated)
+            {
+                ApplyFocus();
+            }
+            else
+            {
+                EventHandler? handler = null;
+                handler = (s, e) =>
+                {
+                    if (listBox.ItemContainerGenerator.Status == System.Windows.Controls.Primitives.GeneratorStatus.ContainersGenerated)
+                    {
+                        listBox.ItemContainerGenerator.StatusChanged -= handler;
+                        Dispatcher.BeginInvoke(DispatcherPriority.Input, (Action)ApplyFocus);
+                    }
+                };
+                listBox.ItemContainerGenerator.StatusChanged += handler;
+                Dispatcher.BeginInvoke(DispatcherPriority.Loaded, (Action)ApplyFocus);
+            }
+        }
+
         private void LstDisks_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             // Right Arrow: Shift focus seamlessly into Partitions list
@@ -337,15 +377,7 @@ namespace DiskPartitioner
                     e.Handled = true;
                     Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
                     {
-                        lstPartitions.Focus();
-                        if (lstPartitions.SelectedIndex < 0 && Partitions.Count > 0)
-                        {
-                            lstPartitions.SelectedIndex = 0;
-                        }
-                        if (lstPartitions.ItemContainerGenerator.ContainerFromIndex(lstPartitions.SelectedIndex) is ListBoxItem item)
-                        {
-                            item.Focus();
-                        }
+                        FocusListBoxItem(lstPartitions);
                     });
                 }
             }
@@ -369,11 +401,7 @@ namespace DiskPartitioner
                 e.Handled = true;
                 Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
                 {
-                    lstDisks.Focus();
-                    if (lstDisks.ItemContainerGenerator.ContainerFromIndex(lstDisks.SelectedIndex) is ListBoxItem item)
-                    {
-                        item.Focus();
-                    }
+                    FocusListBoxItem(lstDisks);
                 });
             }
             else if (e.Key == Key.Delete)
@@ -604,17 +632,18 @@ namespace DiskPartitioner
 
                 Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
                 {
-                    if (target != null && target.IsVisible && target.Focusable)
+                    if (target is ListBox lb)
+                    {
+                        FocusListBoxItem(lb);
+                    }
+                    else if (target != null && target.IsVisible && target.Focusable)
                     {
                         target.Focus();
-                        if (target is ListBox lb && lb.SelectedItem != null && lb.ItemContainerGenerator.ContainerFromItem(lb.SelectedItem) is ListBoxItem lbi)
-                        {
-                            lbi.Focus();
-                        }
+                        Keyboard.Focus(target);
                     }
                     else
                     {
-                        lstDisks.Focus();
+                        FocusListBoxItem(lstDisks);
                     }
                 });
             }
@@ -707,6 +736,19 @@ namespace DiskPartitioner
         private void MenuViewOnGitHub_Click(object sender, RoutedEventArgs e)
         {
             _updateService.OpenUrl(UpdateService.RepoWebUrl);
+            Announce("Opening Disk Partitioner repository on GitHub.");
+        }
+
+        private void MenuReportIssue_Click(object sender, RoutedEventArgs e)
+        {
+            _updateService.OpenUrl($"{UpdateService.RepoWebUrl}/issues/new/choose");
+            Announce("Opening GitHub issues to report bug.");
+        }
+
+        private void MenuPrivacyPolicy_Click(object sender, RoutedEventArgs e)
+        {
+            _updateService.OpenUrl("https://gist.github.com/AakanshNahadiya/4d4f4abe3878de9c43ff9d9b3b7c9ee3");
+            Announce("Opening Accessible Tools Privacy Policy.");
         }
 
         private async void CheckForDailyUpdatesInBackground()
@@ -731,6 +773,10 @@ namespace DiskPartitioner
                 }
             }
             catch { }
+            finally
+            {
+                TrimProcessMemory();
+            }
         }
 
         private void MenuAbout_Click(object sender, RoutedEventArgs e)
@@ -740,18 +786,7 @@ namespace DiskPartitioner
             TrimProcessMemory();
         }
 
-        private void TriggerAdminRestart()
-        {
-            if (!_isAdmin)
-            {
-                Announce("Requesting Administrator elevation prompt...");
-                ElevationHelper.RestartAsAdmin();
-            }
-            else
-            {
-                Announce("Application is already running as Administrator.");
-            }
-        }
+
 
         private bool CheckAdminForModification()
         {
@@ -1041,7 +1076,7 @@ namespace DiskPartitioner
 
         private async void MenuPartitionFormat_Click(object sender, RoutedEventArgs e)
         {
-            if (lstPartitions.SelectedItem is not PartitionItem part || part.IsUnallocated) return;
+            if (lstPartitions.SelectedItem is not PartitionItem part) return;
 
             var check = _guardrailService.CanFormatPartition(lstDisks.SelectedItem as PhysicalDiskItem ?? new PhysicalDiskItem(), part);
             if (!check.IsAllowed)
@@ -1111,12 +1146,13 @@ namespace DiskPartitioner
 
         private async void MenuPartitionDriveLetter_Click(object sender, RoutedEventArgs e)
         {
-            if (lstPartitions.SelectedItem is not PartitionItem part || part.IsUnallocated) return;
+            if (lstPartitions.SelectedItem is not PartitionItem part) return;
 
             var check = _guardrailService.CanModifyDriveLetter(lstDisks.SelectedItem as PhysicalDiskItem ?? new PhysicalDiskItem(), part);
             if (!check.IsAllowed)
             {
                 MessageBox.Show(this, check.Reason, "Operation Blocked", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Announce(check.Reason);
                 return;
             }
 
@@ -1152,7 +1188,7 @@ namespace DiskPartitioner
 
         private async void MenuPartitionExtend_Click(object sender, RoutedEventArgs e)
         {
-            if (lstPartitions.SelectedItem is not PartitionItem part || part.IsUnallocated) return;
+            if (lstPartitions.SelectedItem is not PartitionItem part) return;
 
             var check = _guardrailService.CanExtendPartition(lstDisks.SelectedItem as PhysicalDiskItem ?? new PhysicalDiskItem(), part);
             if (!check.IsAllowed)
@@ -1164,7 +1200,26 @@ namespace DiskPartitioner
 
             if (!CheckAdminForModification()) return;
 
-            var dlg = new ResizePartitionDialog(part, isShrink: false) { Owner = this };
+            long maxExtendMb = 0;
+            int partIndex = Partitions.IndexOf(part);
+            if (partIndex >= 0 && partIndex + 1 < Partitions.Count)
+            {
+                var nextItem = Partitions[partIndex + 1];
+                if (nextItem.IsUnallocated)
+                {
+                    maxExtendMb = Math.Max(0, nextItem.SizeBytes / (1024 * 1024));
+                }
+            }
+            if (maxExtendMb == 0)
+            {
+                var anyUnallocated = Partitions.FirstOrDefault(p => p.IsUnallocated);
+                if (anyUnallocated != null)
+                {
+                    maxExtendMb = Math.Max(0, anyUnallocated.SizeBytes / (1024 * 1024));
+                }
+            }
+
+            var dlg = new ResizePartitionDialog(part, isShrink: false, maxAvailableMb: maxExtendMb) { Owner = this };
             if (dlg.ShowDialog() == true)
             {
                 _isOperationInProgress = true;
@@ -1186,7 +1241,7 @@ namespace DiskPartitioner
 
         private async void MenuPartitionShrink_Click(object sender, RoutedEventArgs e)
         {
-            if (lstPartitions.SelectedItem is not PartitionItem part || part.IsUnallocated) return;
+            if (lstPartitions.SelectedItem is not PartitionItem part) return;
 
             var check = _guardrailService.CanShrinkPartition(lstDisks.SelectedItem as PhysicalDiskItem ?? new PhysicalDiskItem(), part);
             if (!check.IsAllowed)
@@ -1220,7 +1275,7 @@ namespace DiskPartitioner
 
         private async void MenuPartitionDelete_Click(object sender, RoutedEventArgs e)
         {
-            if (lstPartitions.SelectedItem is not PartitionItem part || part.IsUnallocated) return;
+            if (lstPartitions.SelectedItem is not PartitionItem part) return;
 
             var check = _guardrailService.CanDeletePartition(lstDisks.SelectedItem as PhysicalDiskItem ?? new PhysicalDiskItem(), part);
             if (!check.IsAllowed)
@@ -1291,7 +1346,7 @@ namespace DiskPartitioner
 
         private async void MenuPartitionForceDelete_Click(object sender, RoutedEventArgs e)
         {
-            if (lstPartitions.SelectedItem is not PartitionItem part || part.IsUnallocated) return;
+            if (lstPartitions.SelectedItem is not PartitionItem part) return;
 
             var check = _guardrailService.CanDeletePartition(lstDisks.SelectedItem as PhysicalDiskItem ?? new PhysicalDiskItem(), part);
             if (!check.IsAllowed)

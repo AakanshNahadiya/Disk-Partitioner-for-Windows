@@ -45,18 +45,10 @@ namespace DiskPartitioner.Services
             int systemDiskIndex = GetSystemDiskIndex();
 
             // Native Win32 physical drive discovery: high-speed, zero WMI/COM memory footprint
-            int consecutiveMissing = 0;
             for (int index = 0; index < 32; index++)
             {
                 var info = NativeMethods.QueryDiskDeviceInfo(index);
-                if (info == null)
-                {
-                    consecutiveMissing++;
-                    if (consecutiveMissing >= 2 && index > 0) break;
-                    continue;
-                }
-
-                consecutiveMissing = 0;
+                if (info == null) continue;
 
                 long size = NativeMethods.QueryDiskLength(index);
                 var (style, partCount) = NativeMethods.QueryDiskLayout(index);

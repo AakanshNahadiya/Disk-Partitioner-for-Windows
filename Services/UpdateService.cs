@@ -120,13 +120,17 @@ namespace DiskPartitioner.Services
                     string? lastStr = key.GetValue(RegLastCheckUtc) as string;
                     if (!string.IsNullOrWhiteSpace(lastStr) && DateTime.TryParse(lastStr, null, System.Globalization.DateTimeStyles.RoundtripKind, out var lastUtc))
                     {
-                        return (DateTime.UtcNow - lastUtc).TotalHours >= 24;
+                        // Skip if already checked today (same calendar day or within 24 hours)
+                        if (lastUtc.Date == DateTime.UtcNow.Date || (DateTime.UtcNow - lastUtc).TotalHours < 24.0)
+                        {
+                            return false;
+                        }
                     }
                 }
             }
             catch { }
 
-            return true; // Check if never checked before
+            return true; // Check if never checked today
         }
 
         public void RecordCheckPerformed()

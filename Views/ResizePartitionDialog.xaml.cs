@@ -1,5 +1,6 @@
 using System;
 using System.Windows;
+using DiskPartitioner.Helpers;
 using DiskPartitioner.Models;
 
 namespace DiskPartitioner.Views
@@ -7,12 +8,13 @@ namespace DiskPartitioner.Views
     public partial class ResizePartitionDialog : Window
     {
         private readonly PartitionItem _partition;
+        private readonly long _maxAvailableMb;
         public bool IsShrink { get; }
         public long DeltaMb { get; private set; }
         private int _lastUnitIndex = 0; // 0 = GB, 1 = MB
         private bool _isUpdatingUnit = false;
 
-        public ResizePartitionDialog(PartitionItem partition, bool isShrink)
+        public ResizePartitionDialog(PartitionItem partition, bool isShrink, long maxAvailableMb = 0)
         {
             InitializeComponent();
             _partition = partition;
@@ -34,6 +36,7 @@ namespace DiskPartitioner.Views
                 long totalMb = Math.Max(1, partition.SizeBytes / (1024 * 1024));
                 long freeMb = partition.FreeSizeBytes > 0 ? partition.FreeSizeBytes / (1024 * 1024) : 0;
                 long maxShrinkMb = freeMb > 512 ? (freeMb - 256) : (freeMb > 0 ? freeMb : Math.Max(1, totalMb / 2));
+                _maxAvailableMb = maxShrinkMb;
 
                 // Sensible default: 1024 MB (1 GB) if ample free space exists, otherwise half of freeMb
                 long defaultShrinkMb;
@@ -74,10 +77,30 @@ namespace DiskPartitioner.Views
             {
                 Title = "Extend Volume";
                 txtTitle.Text = "Extend Volume";
-                lblSizePrompt.Text = "Amount of space to extend (enter 0 to use all available unallocated space):";
-                txtHint.Text = "The partition will be extended into adjacent unallocated space.";
-                txtDeltaValue.Text = "0";
-                System.Windows.Automation.AutomationProperties.SetName(txtDeltaValue, "Amount of space to extend, enter 0 for all available unallocated space");
+                lblSizePrompt.Text = "Amount of space to extend:";
+                _maxAvailableMb = maxAvailableMb;
+
+                if (_maxAvailableMb >= 1024)
+                {
+                    cmbDeltaUnit.SelectedIndex = 0; // GB
+                    txtDeltaValue.Text = Math.Round(_maxAvailableMb / 1024.0, 2).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                }
+                else if (_maxAvailableMb > 0)
+                {
+                    cmbDeltaUnit.SelectedIndex = 1; // MB
+                    txtDeltaValue.Text = _maxAvailableMb.ToString();
+                }
+                else
+                {
+                    cmbDeltaUnit.SelectedIndex = 0; // GB
+                    txtDeltaValue.Text = "0";
+                }
+
+                txtHint.Text = _maxAvailableMb > 0
+                    ? $"Available adjacent unallocated space: {FormatHelper.FormatBytes(_maxAvailableMb * 1024 * 1024)}. Click Max Size or enter 0 to extend using all available space."
+                    : "The partition will be extended into adjacent unallocated space (enter 0 or click Max Size to use all available space).";
+
+                System.Windows.Automation.AutomationProperties.SetName(txtDeltaValue, "Amount of space to extend, enter 0 or click Max Size for all available unallocated space");
                 System.Windows.Automation.AutomationProperties.SetName(cmbDeltaUnit, "Unit of space to extend");
                 btnApply.Content = "Extend";
             }
@@ -114,6 +137,28 @@ namespace DiskPartitioner.Views
             }
 
             _lastUnitIndex = newIndex;
+        }
+
+        private void BtnMax_Click(object sender, RoutedEventArgs e)
+        {
+            if (_maxAvailableMb > 0)
+            {
+                if (cmbDeltaUnit.SelectedIndex == 0)
+                {
+                    txtDeltaValue.Text = Math.Round(_maxAvailableMb / 1024.0, 2).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                }
+                else
+                {
+                    txtDeltaValue.Text = _maxAvailableMb.ToString();
+                }
+            }
+            else
+            {
+                txtDeltaValue.Text = "0";
+            }
+
+            txtDeltaValue.Focus();
+            txtDeltaValue.SelectAll();
         }
 
         private void BtnApply_Click(object sender, RoutedEventArgs e)
@@ -157,6 +202,31 @@ namespace DiskPartitioner.Views
                         MessageBoxImage.Warning);
                     txtDeltaValue.Focus();
                     return;
+                }
+
+                DeltaMb = mb;
+            }
+            else
+            {
+                if (_maxAvailableMb > 0 && mb > _maxAvailableMb)
+                {
+                    string maxDisp = cmbDeltaUnit.SelectedIndex == 0
+                        ? $"{Math.Round(_maxAvailableMb / 1024.0, 2):N2} GB"
+                        : $"{_maxAvailableMb:N0} MB";
+
+                    MessageBox.Show(this, $"The entered size exceeds available unallocated space ({maxDisp}).", "Size Exceeds Capacity", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    txtDeltaValue.Focus();
+                    return;
+                }
+
+                // In Diskpart, size=0 or omitting size extends across all available unallocated space
+                if (mb <= 0 || (_maxAvailableMb > 0 && mb >= _maxAvailableMb))
+                {
+                    DeltaMb = 0;
+                }
+                else
+                {
+                    DeltaMb = mb;
                 }
             }
 

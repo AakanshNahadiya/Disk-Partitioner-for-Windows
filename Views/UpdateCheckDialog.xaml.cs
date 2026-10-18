@@ -83,7 +83,7 @@ namespace DiskPartitioner.Views
                 pnlReleaseNotes.Visibility = Visibility.Visible;
                 btnDownload.Visibility = !string.IsNullOrWhiteSpace(info.DownloadUrl) ? Visibility.Visible : Visibility.Collapsed;
                 btnViewReleaseNotes.Visibility = Visibility.Visible;
-                btnViewReleaseNotes.Content = "View on GitHub";
+                btnViewReleaseNotes.Content = "See What's New";
                 Height = 480;
                 Width = 540;
 

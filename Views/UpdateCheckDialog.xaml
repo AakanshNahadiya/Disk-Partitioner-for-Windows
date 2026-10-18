@@ -2,9 +2,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Check for Updates"
-        Height="300" Width="500"
+        Height="250" Width="520"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
+        ShowInTaskbar="False"
         Background="{StaticResource WindowBackgroundBrush}">
 
     <Border Padding="20">
@@ -13,7 +14,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
@@ -25,34 +26,30 @@
             <TextBlock Grid.Row="1" x:Name="txtStatus" Text="Checking for updates..." FontSize="14" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,4"/>
 
             <!-- Version Info -->
-            <TextBlock Grid.Row="2" x:Name="txtVersionInfo" Text="" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,12"/>
+            <TextBlock Grid.Row="2" x:Name="txtVersionInfo" Text="" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,10"/>
 
-            <!-- Release Notes Panel (shown when a newer update is available) -->
-            <DockPanel Grid.Row="3" x:Name="pnlReleaseNotes" Margin="0,0,0,12" Visibility="Collapsed">
-                <TextBlock x:Name="txtReleaseNotesHeader" DockPanel.Dock="Top" Text="Release Notes:" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,0,0,6"/>
-                <TextBox x:Name="txtReleaseNotes"
-                         IsReadOnly="True"
-                         AcceptsReturn="True"
-                         AcceptsTab="False"
-                         TextWrapping="Wrap"
-                         VerticalScrollBarVisibility="Auto"
-                         HorizontalScrollBarVisibility="Disabled"
-                         Background="{StaticResource SurfaceBackgroundBrush}"
-                         Foreground="{StaticResource TextPrimaryBrush}"
-                         BorderBrush="{StaticResource BorderBrush}"
-                         Padding="8"
-                         FontSize="12"
-                         AutomationProperties.Name="Release Notes"/>
-            </DockPanel>
+            <!-- Download Status and Progress (Shown when update available) -->
+            <StackPanel Grid.Row="3" x:Name="pnlDownloadProgress" Margin="0,0,0,12" Visibility="Collapsed">
+                <TextBlock x:Name="txtDownloadStatus" Foreground="{StaticResource AccentBrush}" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,6"
+                           Text="Would you like to download and install this update now?"
+                           AutomationProperties.LiveSetting="Polite"/>
+                <ProgressBar x:Name="pbDownload" Height="8" Minimum="0" Maximum="100" Value="0"
+                             Visibility="Collapsed" Background="{StaticResource SurfaceBackgroundBrush}" Foreground="{StaticResource AccentBrush}"/>
+            </StackPanel>
 
             <!-- Daily Checkbox Setting -->
             <CheckBox Grid.Row="4" x:Name="chkDailyCheck" Content="Automatically check for updates daily" IsChecked="True" FontSize="13" Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4,0,16" Click="ChkDailyCheck_Click"/>
 
             <!-- Action Buttons -->
             <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right">
-                <Button x:Name="btnDownload" Content="Download Update" Padding="14,8" Margin="0,0,10,0" Background="{StaticResource AccentBrush}" Foreground="#FFFFFF" FontWeight="SemiBold" Visibility="Collapsed" Click="BtnDownload_Click"/>
-                <Button x:Name="btnViewReleaseNotes" Content="View Release Notes" Padding="14,8" Margin="0,0,10,0" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" Visibility="Collapsed" Click="BtnViewReleaseNotes_Click"/>
-                <Button x:Name="btnClose" Content="Close" Padding="16,8" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" IsCancel="True" Click="BtnClose_Click"/>
+                <!-- Update Available buttons -->
+                <Button x:Name="btnDownloadInstall" Content="Download and Install" Padding="14,8" Margin="0,0,10,0" Background="{StaticResource AccentBrush}" Foreground="#FFFFFF" FontWeight="SemiBold" Visibility="Collapsed" Click="BtnDownloadInstall_Click" AutomationProperties.Name="Download and Install"/>
+                <Button x:Name="btnSeeWhatsNew" Content="See What's New" Padding="14,8" Margin="0,0,10,0" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" Visibility="Collapsed" Click="BtnSeeWhatsNew_Click" AutomationProperties.Name="See What's New on GitHub"/>
+                <Button x:Name="btnNotNow" Content="Not Now" Padding="16,8" Margin="0,0,10,0" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" Visibility="Collapsed" Click="BtnNotNow_Click" AutomationProperties.Name="Not Now"/>
+
+                <!-- Up to Date / Error buttons -->
+                <Button x:Name="btnViewReleaseNotes" Content="View Release Notes" Padding="14,8" Margin="0,0,10,0" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" Visibility="Collapsed" Click="BtnViewReleaseNotes_Click" AutomationProperties.Name="View Release Notes on GitHub"/>
+                <Button x:Name="btnClose" Content="Close" Padding="16,8" Background="{StaticResource InputBackgroundBrush}" Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderBrush}" IsCancel="True" Click="BtnClose_Click" AutomationProperties.Name="Close"/>
             </StackPanel>
         </Grid>
     </Border>

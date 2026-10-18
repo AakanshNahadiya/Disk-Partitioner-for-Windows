@@ -147,5 +147,28 @@ namespace DiskPartitioner.Tests
 
             Assert.Equal("https://github.com/AakanshNahadiya/Disk-Partitioner-for-Windows/releases/tag/v1.0.0", defaultInfo.GetEffectiveReleaseUrl());
         }
+
+        [Fact]
+        public async Task DownloadInstallerAsync_RejectsNonHttpsUrl()
+        {
+            var service = new UpdateService();
+            string? resultHttp = await service.DownloadInstallerAsync("http://example.com/setup.exe");
+            Assert.Null(resultHttp);
+
+            string? resultFtp = await service.DownloadInstallerAsync("ftp://example.com/setup.exe");
+            Assert.Null(resultFtp);
+
+            string? resultEmpty = await service.DownloadInstallerAsync("");
+            Assert.Null(resultEmpty);
+        }
+
+        [Fact]
+        public void LaunchInstaller_RejectsInvalidOrNonExistentFile()
+        {
+            var service = new UpdateService();
+            Assert.False(service.LaunchInstaller(""));
+            Assert.False(service.LaunchInstaller("nonexistent_setup.exe"));
+            Assert.False(service.LaunchInstaller("C:\\Windows\\System32\\cmd.bat"));
+        }
     }
 }

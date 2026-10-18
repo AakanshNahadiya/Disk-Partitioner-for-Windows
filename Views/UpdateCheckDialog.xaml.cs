@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using DiskPartitioner.Helpers;
@@ -10,7 +12,9 @@ namespace DiskPartitioner.Views
     {
         private readonly IUpdateService _updateService;
         private readonly IScreenReaderService _screenReader;
+        private readonly CancellationTokenSource _cts = new();
         private UpdateInfo? _currentInfo;
+        private bool _isDownloading = false;
 
         public UpdateCheckDialog(IUpdateService? updateService = null, IScreenReaderService? screenReader = null, UpdateInfo? preFetchedInfo = null)
         {
@@ -22,6 +26,18 @@ namespace DiskPartitioner.Views
             chkDailyCheck.IsChecked = _updateService.IsAutoCheckEnabled();
 
             Loaded += UpdateCheckDialog_Loaded;
+            KeyDown += (s, e) =>
+            {
+                if (e.Key == System.Windows.Input.Key.Escape)
+                {
+                    e.Handled = true;
+                    if (_isDownloading)
+                    {
+                        _cts.Cancel();
+                    }
+                    Close();
+                }
+            };
         }
 
         private async void UpdateCheckDialog_Loaded(object sender, RoutedEventArgs e)
@@ -37,7 +53,7 @@ namespace DiskPartitioner.Views
 
             try
             {
-                var info = await _updateService.CheckForUpdatesAsync();
+                var info = await _updateService.CheckForUpdatesAsync(_cts.Token);
                 _updateService.RecordCheckPerformed();
                 _currentInfo = info;
                 ApplyUpdateInfo(info);
@@ -57,11 +73,14 @@ namespace DiskPartitioner.Views
             {
                 txtStatus.Text = "Unable to check for updates.";
                 txtVersionInfo.Text = info.Message;
-                pnlReleaseNotes.Visibility = Visibility.Collapsed;
-                btnDownload.Visibility = Visibility.Collapsed;
+                pnlDownloadProgress.Visibility = Visibility.Collapsed;
+                btnDownloadInstall.Visibility = Visibility.Collapsed;
+                btnSeeWhatsNew.Visibility = Visibility.Collapsed;
+                btnNotNow.Visibility = Visibility.Collapsed;
                 btnViewReleaseNotes.Visibility = Visibility.Visible;
                 btnViewReleaseNotes.Content = "View Releases on GitHub";
-                Height = 300;
+                btnClose.Visibility = Visibility.Visible;
+                Height = 220;
                 Width = 500;
                 _screenReader.Speak("Unable to check for updates. Please check your internet connection.");
                 btnClose.Focus();
@@ -70,42 +89,41 @@ namespace DiskPartitioner.Views
 
             if (info.HasUpdate)
             {
-                txtStatus.Text = "A new version of Disk Partitioner for Windows is available!";
+                Title = "Update Available - Disk Partitioner for Windows";
+                txtStatus.Text = $"A new version of Disk Partitioner (v{info.LatestVersion}) is available!";
                 txtVersionInfo.Text = $"Installed Version: {info.CurrentVersion}   Latest Version: {info.LatestVersion}";
-                txtReleaseNotesHeader.Text = $"Release Notes (Version {info.LatestVersion}):";
+                txtDownloadStatus.Text = "Would you like to download and install this update now?";
 
-                string rawNotes = string.IsNullOrWhiteSpace(info.ReleaseNotes) ? info.ReleaseName : info.ReleaseNotes;
-                string cleanNotes = TextSanitizer.StripAnsiAndControl(rawNotes, preserveLineBreaks: true);
-                txtReleaseNotes.Text = cleanNotes.Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", "\r\n");
-                txtReleaseNotes.SelectionStart = 0;
-                txtReleaseNotes.SelectionLength = 0;
+                pnlDownloadProgress.Visibility = Visibility.Visible;
+                btnDownloadInstall.Visibility = Visibility.Visible;
+                btnSeeWhatsNew.Visibility = Visibility.Visible;
+                btnNotNow.Visibility = Visibility.Visible;
 
-                pnlReleaseNotes.Visibility = Visibility.Visible;
-                btnDownload.Visibility = !string.IsNullOrWhiteSpace(info.DownloadUrl) ? Visibility.Visible : Visibility.Collapsed;
-                btnViewReleaseNotes.Visibility = Visibility.Visible;
-                btnViewReleaseNotes.Content = "See What's New";
-                Height = 480;
-                Width = 540;
+                btnViewReleaseNotes.Visibility = Visibility.Collapsed;
+                btnClose.Visibility = Visibility.Collapsed;
 
-                _screenReader.Speak($"Update available: Version {info.LatestVersion}. Press Tab to view release notes or download.");
-                if (btnDownload.Visibility == Visibility.Visible)
-                {
-                    btnDownload.Focus();
-                }
-                else
-                {
-                    txtReleaseNotes.Focus();
-                }
+                Height = 260;
+                Width = 520;
+
+                _screenReader.Speak($"Update available: Version {info.LatestVersion}. Press Tab to download and install, or see what is new.");
+                btnDownloadInstall.Focus();
             }
             else
             {
+                Title = "Up to Date - Disk Partitioner for Windows";
                 txtStatus.Text = "Disk Partitioner for Windows is up to date.";
-                txtVersionInfo.Text = $"You have the latest version: Version {info.CurrentVersion}";
-                pnlReleaseNotes.Visibility = Visibility.Collapsed;
-                btnDownload.Visibility = Visibility.Collapsed;
+                txtVersionInfo.Text = $"You have the latest version (Version {info.CurrentVersion}).";
+
+                pnlDownloadProgress.Visibility = Visibility.Collapsed;
+                btnDownloadInstall.Visibility = Visibility.Collapsed;
+                btnSeeWhatsNew.Visibility = Visibility.Collapsed;
+                btnNotNow.Visibility = Visibility.Collapsed;
+
                 btnViewReleaseNotes.Visibility = Visibility.Visible;
                 btnViewReleaseNotes.Content = "View Release Notes";
-                Height = 300;
+                btnClose.Visibility = Visibility.Visible;
+
+                Height = 220;
                 Width = 500;
 
                 _screenReader.Speak($"Disk Partitioner for Windows is up to date. Version {info.CurrentVersion}.");
@@ -119,16 +137,91 @@ namespace DiskPartitioner.Views
             _updateService.SetAutoCheckEnabled(isChecked);
         }
 
-        private void BtnDownload_Click(object sender, RoutedEventArgs e)
+        private async void BtnDownloadInstall_Click(object sender, RoutedEventArgs e)
         {
-            if (!string.IsNullOrWhiteSpace(_currentInfo?.DownloadUrl))
+            if (_isDownloading) return;
+
+            string? downloadUrl = _currentInfo?.DownloadUrl;
+            if (string.IsNullOrEmpty(downloadUrl))
             {
-                _updateService.OpenUrl(_currentInfo.DownloadUrl);
+                // Fallback to browser if installer asset is not directly available
+                string fallbackUrl = _currentInfo?.GetEffectiveReleaseUrl() ?? UpdateService.RepoWebUrl;
+                _updateService.OpenUrl(fallbackUrl);
+                Close();
+                return;
             }
-            else if (!string.IsNullOrWhiteSpace(_currentInfo?.HtmlUrl))
+
+            _isDownloading = true;
+            btnDownloadInstall.IsEnabled = false;
+            btnSeeWhatsNew.IsEnabled = false;
+            btnNotNow.IsEnabled = false;
+            pbDownload.Visibility = Visibility.Visible;
+            pbDownload.Value = 0;
+
+            txtDownloadStatus.Text = "Downloading update from GitHub...";
+            _screenReader.Speak("Downloading update from GitHub.", interrupt: true);
+
+            var progress = new Progress<int>(percent =>
             {
-                _updateService.OpenUrl(_currentInfo.HtmlUrl);
+                pbDownload.Value = percent;
+                txtDownloadStatus.Text = $"Downloading update... {percent}%";
+                if (percent % 25 == 0 && percent > 0 && percent < 100)
+                {
+                    _screenReader.Speak($"Download progress: {percent} percent.", interrupt: false);
+                }
+            });
+
+            try
+            {
+                string? installerPath = await _updateService.DownloadInstallerAsync(downloadUrl, progress, _cts.Token);
+                if (!string.IsNullOrEmpty(installerPath) && File.Exists(installerPath))
+                {
+                    txtDownloadStatus.Text = "Download complete. Starting installer...";
+                    _screenReader.Speak("Download complete. Starting installer.", interrupt: true);
+
+                    await Task.Delay(600);
+
+                    bool launched = _updateService.LaunchInstaller(installerPath);
+                    if (launched)
+                    {
+                        // Cleanly shut down the application so installer can overwrite binaries
+                        Application.Current.Shutdown();
+                        return;
+                    }
+                    else
+                    {
+                        MessageBox.Show(this, "Failed to launch the downloaded installer.", "Update Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+                else
+                {
+                    txtDownloadStatus.Text = "Failed to download update. Please try again or visit GitHub.";
+                    _screenReader.Speak("Failed to download update.", interrupt: true);
+                    btnDownloadInstall.IsEnabled = true;
+                    btnSeeWhatsNew.IsEnabled = true;
+                    btnNotNow.IsEnabled = true;
+                }
             }
+            catch (Exception ex)
+            {
+                txtDownloadStatus.Text = $"Download error: {ex.Message}";
+                _screenReader.Speak("Update download error.", interrupt: true);
+                btnDownloadInstall.IsEnabled = true;
+                btnSeeWhatsNew.IsEnabled = true;
+                btnNotNow.IsEnabled = true;
+            }
+            finally
+            {
+                _isDownloading = false;
+            }
+        }
+
+        private void BtnSeeWhatsNew_Click(object sender, RoutedEventArgs e)
+        {
+            string url = _currentInfo?.GetEffectiveReleaseUrl() ??
+                         $"{UpdateService.RepoWebUrl}/releases/tag/v{_currentInfo?.LatestVersion ?? _updateService.GetCurrentVersion()}";
+            _updateService.OpenUrl(url);
+            _screenReader.Speak("Opening release notes on GitHub.");
         }
 
         private void BtnViewReleaseNotes_Click(object sender, RoutedEventArgs e)
@@ -136,11 +229,30 @@ namespace DiskPartitioner.Views
             string url = _currentInfo?.GetEffectiveReleaseUrl() ??
                          $"{UpdateService.RepoWebUrl}/releases/tag/v{_updateService.GetCurrentVersion()}";
             _updateService.OpenUrl(url);
+            _screenReader.Speak("Opening release notes on GitHub.");
+        }
+
+        private void BtnNotNow_Click(object sender, RoutedEventArgs e)
+        {
+            if (_isDownloading)
+            {
+                _cts.Cancel();
+            }
+            Close();
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
             Close();
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            if (_isDownloading)
+            {
+                _cts.Cancel();
+            }
+            base.OnClosed(e);
         }
     }
 }

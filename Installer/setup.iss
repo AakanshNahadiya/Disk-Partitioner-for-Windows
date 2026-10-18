@@ -1,7 +1,7 @@
 ; Inno Setup 6 Script for Disk Partitioner for Windows
 ; Accessible Tools Suite - http://github.com/AakanshNahadiya
 #define MyAppName "Disk Partitioner for Windows"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.2"
 #define MyAppPublisher "Accessible Tools"
 #define MyAppURL "https://github.com/AakanshNahadiya"
 #define MyAppExeName "DiskPartitioner.exe"
@@ -22,7 +22,7 @@ DefaultGroupName=Accessible Tools\{#MyAppName}
 DisableProgramGroupPage=yes
 DisableReadyPage=yes
 OutputDir=Output
-OutputBaseFilename=DiskPartitioner_Setup_v1.0.0
+OutputBaseFilename=DiskPartitioner_Setup_v1.0.2
 SetupIconFile=..\Resources\app.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2/ultra64

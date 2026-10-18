@@ -15,8 +15,8 @@ namespace DiskPartitioner.Services
     {
         public bool IsSuccess { get; set; } = true;
         public bool HasUpdate { get; set; } = false;
-        public string CurrentVersion { get; set; } = "1.0.0";
-        public string LatestVersion { get; set; } = "1.0.0";
+        public string CurrentVersion { get; set; } = "1.0.2";
+        public string LatestVersion { get; set; } = "1.0.2";
         public string ReleaseName { get; set; } = string.Empty;
         public string ReleaseNotes { get; set; } = string.Empty;
         public string HtmlUrl { get; set; } = "https://github.com/AakanshNahadiya/Disk-Partitioner-for-Windows";
@@ -77,7 +77,7 @@ namespace DiskPartitioner.Services
         public string GetCurrentVersion()
         {
             var version = Assembly.GetExecutingAssembly().GetName().Version;
-            return version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "1.0.0";
+            return version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "1.0.2";
         }
 
         public bool IsAutoCheckEnabled()

@@ -51,10 +51,10 @@ namespace DiskPartitioner.Services
 
     public class UpdateService : IUpdateService
     {
-        public const string RepoOwner = "AakanshNahadiya";
+        public const string RepoOwner = "AccessibleTools";
         public const string RepoName = "Disk-Partitioner-for-Windows";
-        public const string ReleasesApiUrl = "https://api.github.com/repos/AakanshNahadiya/Disk-Partitioner-for-Windows/releases/latest";
-        public const string RepoWebUrl = "https://github.com/AakanshNahadiya/Disk-Partitioner-for-Windows";
+        public const string ReleasesApiUrl = "https://api.github.com/repos/AccessibleTools/Disk-Partitioner-for-Windows/releases/latest";
+        public const string RepoWebUrl = "https://github.com/AccessibleTools/Disk-Partitioner-for-Windows";
 
         private const string RegistrySubKey = @"Software\AccessibleTools\DiskPartitioner";
         private const string RegAutoCheck = "AutoCheckUpdates";

@@ -751,6 +751,12 @@ namespace DiskPartitioner
             Announce("Opening Accessible Tools Privacy Policy.");
         }
 
+        private void MenuThirdPartyNotices_Click(object sender, RoutedEventArgs e)
+        {
+            _updateService.OpenUrl("https://github.com/AccessibleTools/Disk-Partitioner-for-Windows/blob/main/THIRD-PARTY-NOTICES.md");
+            Announce("Opening Third-Party Notices and Licenses.");
+        }
+
         private async void CheckForDailyUpdatesInBackground()
         {
             try

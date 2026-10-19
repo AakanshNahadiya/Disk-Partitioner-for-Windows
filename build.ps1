@@ -27,6 +27,7 @@ Copy-Item "Resources/app.ico" "./publish/Resources/" -Force
 Get-ChildItem -Path "./publish" -Directory | Where-Object { $_.Name -match '^[a-z]{2}(-[A-Za-z]+)?$' } | Remove-Item -Recurse -Force
 
 # Remove truly unused enterprise/server/XML assemblies to optimize package size safely without touching any WPF runtime dependencies
+# CRITICAL: NEVER remove System.Windows.Controls.Ribbon.dll as WPF AncestorType XAML resolution strictly requires it!
 $unusedAssemblies = @(
     "System.Data.*",
     "PresentationFramework-SystemData.dll",
@@ -53,7 +54,6 @@ $unusedAssemblies = @(
     "PresentationFramework.Royale.dll",
     "PresentationFramework.Classic.dll",
     "PresentationFramework.Fluent.dll",
-    "System.Windows.Controls.Ribbon.dll",
     "System.Private.Xml.dll",
     "System.Private.Xml.Linq.dll",
     "System.Xml.*",

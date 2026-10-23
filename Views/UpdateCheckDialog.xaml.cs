@@ -173,7 +173,8 @@ namespace DiskPartitioner.Views
 
             try
             {
-                string? installerPath = await _updateService.DownloadInstallerAsync(downloadUrl, progress, _cts.Token);
+                string? expectedSha256 = _currentInfo?.ExpectedSha256;
+                string? installerPath = await _updateService.DownloadInstallerAsync(downloadUrl, expectedSha256, progress, _cts.Token);
                 if (!string.IsNullOrEmpty(installerPath) && File.Exists(installerPath))
                 {
                     txtDownloadStatus.Text = "Download complete. Starting installer...";

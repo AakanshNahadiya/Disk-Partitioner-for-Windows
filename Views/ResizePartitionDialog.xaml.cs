@@ -230,7 +230,6 @@ namespace DiskPartitioner.Views
                 }
             }
 
-            DeltaMb = mb;
             DialogResult = true;
             Close();
         }

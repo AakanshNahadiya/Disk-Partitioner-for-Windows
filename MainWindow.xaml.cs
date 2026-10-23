@@ -41,6 +41,8 @@ namespace DiskPartitioner
         private bool _isPartitionRefreshing;
         private bool _isOperationInProgress;
         private bool _isInitialLoad = true;
+        private CancellationTokenSource? _memoryTrimCts;
+        private readonly object _trimLock = new object();
         private UIElement? _lastFocusedElementBeforeMenu;
         private bool _altKeyDown;
         private bool _otherKeyPressedWhileAlt;
@@ -62,6 +64,8 @@ namespace DiskPartitioner
 
             _isAdmin = ElevationHelper.IsRunningAsAdmin();
             txtElevationStatus.Text = "Administrator Mode (Full Disk Management Privileges)";
+
+            ConfigurePackaging();
 
             mainMenu.AddHandler(MenuItem.ClickEvent, new RoutedEventHandler(OnAnyMenuItemClicked));
 
@@ -86,7 +90,7 @@ namespace DiskPartitioner
                     Dispatcher.BeginInvoke(DispatcherPriority.Background, async () =>
                     {
                         await Task.Delay(250);
-                        if (WindowState == WindowState.Minimized)
+                        if (WindowState == WindowState.Minimized && !_isOperationInProgress)
                         {
                             TrimProcessMemory();
                         }
@@ -98,8 +102,22 @@ namespace DiskPartitioner
                 }
             };
 
+            Deactivated += (s, e) =>
+            {
+                ScheduleBackgroundMemoryTrim(delayMs: 1000);
+            };
+
             Closed += (s, e) =>
             {
+                lock (_trimLock)
+                {
+                    try
+                    {
+                        _memoryTrimCts?.Cancel();
+                        _memoryTrimCts?.Dispose();
+                    }
+                    catch { }
+                }
                 _hwndSource?.RemoveHook(WndProc);
                 _hwndSource?.Dispose();
                 Application.Current.Shutdown();
@@ -127,6 +145,44 @@ namespace DiskPartitioner
                 });
             }
             return IntPtr.Zero;
+        }
+
+        private void ScheduleBackgroundMemoryTrim(int delayMs = 1200)
+        {
+            if (_isOperationInProgress) return;
+
+            CancellationToken token;
+            lock (_trimLock)
+            {
+                try
+                {
+                    _memoryTrimCts?.Cancel();
+                    _memoryTrimCts?.Dispose();
+                }
+                catch { }
+
+                _memoryTrimCts = new CancellationTokenSource();
+                token = _memoryTrimCts.Token;
+            }
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(delayMs, token);
+                    if (token.IsCancellationRequested) return;
+
+                    await Dispatcher.InvokeAsync(() =>
+                    {
+                        if (!_isOperationInProgress)
+                        {
+                            TrimProcessMemory();
+                        }
+                    }, DispatcherPriority.Background, token);
+                }
+                catch (OperationCanceledException) { }
+                catch { }
+            });
         }
 
         public static void TrimProcessMemory()
@@ -231,6 +287,11 @@ namespace DiskPartitioner
 
                     Announce($"Refreshed: {Disks.Count} physical disks found.");
                 }
+
+                if (!_isInitialLoad)
+                {
+                    ScheduleBackgroundMemoryTrim(delayMs: 1200);
+                }
             }
             catch (Exception ex)
             {
@@ -302,6 +363,8 @@ namespace DiskPartitioner
             {
                 txtStatus.Text = selectedDisk.DisplayName;
             }
+
+            ScheduleBackgroundMemoryTrim(delayMs: 1500);
         }
 
         private void LstPartitions_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -726,8 +789,25 @@ namespace DiskPartitioner
             Close();
         }
 
+        private void ConfigurePackaging()
+        {
+            if (PackageHelper.IsStorePackage())
+            {
+                if (menuCheckForUpdates != null)
+                {
+                    menuCheckForUpdates.Visibility = Visibility.Collapsed;
+                }
+            }
+        }
+
         private void MenuCheckForUpdates_Click(object sender, RoutedEventArgs e)
         {
+            if (PackageHelper.IsStorePackage())
+            {
+                Announce("Updates for this edition are managed automatically by the Microsoft Store.");
+                return;
+            }
+
             var dlg = new UpdateCheckDialog(_updateService, _screenReaderService) { Owner = this };
             dlg.ShowDialog();
             TrimProcessMemory();
@@ -761,7 +841,7 @@ namespace DiskPartitioner
         {
             try
             {
-                if (!_updateService.ShouldPerformDailyCheck()) return;
+                if (PackageHelper.IsStorePackage() || !_updateService.ShouldPerformDailyCheck()) return;
 
                 _updateService.RecordCheckPerformed();
                 var info = await _updateService.CheckForUpdatesAsync();

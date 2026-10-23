@@ -77,7 +77,7 @@
                     <MenuItem x:Name="menuHelp" Header="_Help">
                         <MenuItem Header="_Keyboard Shortcuts" InputGestureText="F1" Click="BtnShortcuts_Click"/>
                         <Separator/>
-                        <MenuItem Header="_Check for Updates..." Click="MenuCheckForUpdates_Click"/>
+                        <MenuItem x:Name="menuCheckForUpdates" Header="_Check for Updates..." Click="MenuCheckForUpdates_Click"/>
                         <MenuItem Header="_View on GitHub" Click="MenuViewOnGitHub_Click"/>
                         <MenuItem Header="_Create Issue and Report Bug on GitHub" Click="MenuReportIssue_Click"/>
                         <MenuItem Header="_Privacy Policy" Click="MenuPrivacyPolicy_Click"/>

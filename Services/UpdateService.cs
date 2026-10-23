@@ -21,6 +21,7 @@ namespace DiskPartitioner.Services
         public string ReleaseNotes { get; set; } = string.Empty;
         public string HtmlUrl { get; set; } = "https://github.com/AakanshNahadiya/Disk-Partitioner-for-Windows";
         public string? DownloadUrl { get; set; }
+        public string? ExpectedSha256 { get; set; }
         public string Message { get; set; } = string.Empty;
 
         public string GetEffectiveReleaseUrl()
@@ -45,7 +46,9 @@ namespace DiskPartitioner.Services
         bool HasNotifiedForVersion(string version);
         void RecordVersionNotified(string version);
         void OpenUrl(string url);
+        bool VerifyFileHash(string filePath, string expectedSha256);
         Task<string?> DownloadInstallerAsync(string downloadUrl, IProgress<int>? progress = null, CancellationToken cancellationToken = default);
+        Task<string?> DownloadInstallerAsync(string downloadUrl, string? expectedSha256, IProgress<int>? progress = null, CancellationToken cancellationToken = default);
         bool LaunchInstaller(string installerPath);
     }
 
@@ -224,8 +227,26 @@ namespace DiskPartitioner.Services
                             asset.TryGetProperty("browser_download_url", out var dlElem))
                         {
                             info.DownloadUrl = dlElem.GetString();
+                            if (asset.TryGetProperty("digest", out var digestElem))
+                            {
+                                string? digest = digestElem.GetString();
+                                if (!string.IsNullOrWhiteSpace(digest) && digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    info.ExpectedSha256 = digest["sha256:".Length..].Trim();
+                                }
+                            }
                             break;
                         }
+                    }
+                }
+
+                // If digest wasn't directly in the asset, check if ReleaseNotes publishes a SHA256 checksum
+                if (string.IsNullOrWhiteSpace(info.ExpectedSha256) && !string.IsNullOrWhiteSpace(info.ReleaseNotes))
+                {
+                    var match = System.Text.RegularExpressions.Regex.Match(info.ReleaseNotes, @"(?:SHA-?256|Checksum)[:\s]+([a-fA-F0-9]{64})", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                    if (match.Success)
+                    {
+                        info.ExpectedSha256 = match.Groups[1].Value.Trim();
                     }
                 }
 
@@ -283,7 +304,29 @@ namespace DiskPartitioner.Services
             }
         }
 
-        public async Task<string?> DownloadInstallerAsync(string downloadUrl, IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+        public bool VerifyFileHash(string filePath, string expectedSha256)
+        {
+            if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath) || string.IsNullOrWhiteSpace(expectedSha256))
+                return false;
+
+            try
+            {
+                using var sha256 = System.Security.Cryptography.SHA256.Create();
+                using var stream = File.OpenRead(filePath);
+                byte[] hash = sha256.ComputeHash(stream);
+                string computed = Convert.ToHexString(hash);
+                return computed.Equals(expectedSha256.Trim(), StringComparison.OrdinalIgnoreCase);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public Task<string?> DownloadInstallerAsync(string downloadUrl, IProgress<int>? progress = null, CancellationToken cancellationToken = default)
+            => DownloadInstallerAsync(downloadUrl, null, progress, cancellationToken);
+
+        public async Task<string?> DownloadInstallerAsync(string downloadUrl, string? expectedSha256, IProgress<int>? progress = null, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(downloadUrl)) return null;
 
@@ -303,26 +346,39 @@ namespace DiskPartitioner.Services
 
                 string tempFilePath = Path.Combine(tempDir, fileName);
 
-                using var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-                response.EnsureSuccessStatusCode();
-
-                long? totalBytes = response.Content.Headers.ContentLength;
-                using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-                using var fileStream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
-
-                byte[] buffer = new byte[8192];
-                long totalRead = 0;
-                int bytesRead;
-
-                while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false)) > 0)
+                using (var response = await _httpClient.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false))
                 {
-                    await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
-                    totalRead += bytesRead;
+                    response.EnsureSuccessStatusCode();
 
-                    if (totalBytes.HasValue && totalBytes.Value > 0)
+                    long? totalBytes = response.Content.Headers.ContentLength;
+                    using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+                    using var fileStream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
+
+                    byte[] buffer = new byte[8192];
+                    long totalRead = 0;
+                    int bytesRead;
+
+                    while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false)) > 0)
                     {
-                        int progressPercent = (int)((totalRead * 100) / totalBytes.Value);
-                        progress?.Report(progressPercent);
+                        await fileStream.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
+                        totalRead += bytesRead;
+
+                        if (totalBytes.HasValue && totalBytes.Value > 0)
+                        {
+                            int progressPercent = (int)((totalRead * 100) / totalBytes.Value);
+                            progress?.Report(progressPercent);
+                        }
+                    }
+                }
+
+                // Verify SHA-256 integrity if checksum is provided by GitHub
+                if (!string.IsNullOrWhiteSpace(expectedSha256))
+                {
+                    if (!VerifyFileHash(tempFilePath, expectedSha256))
+                    {
+                        try { File.Delete(tempFilePath); } catch { }
+                        Debug.WriteLine("Downloaded update failed SHA-256 verification and was deleted for security.");
+                        return null;
                     }
                 }
 

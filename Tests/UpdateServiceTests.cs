@@ -170,5 +170,31 @@ namespace DiskPartitioner.Tests
             Assert.False(service.LaunchInstaller("nonexistent_setup.exe"));
             Assert.False(service.LaunchInstaller("C:\\Windows\\System32\\cmd.bat"));
         }
+
+        [Fact]
+        public void VerifyFileHash_ValidatesCorrectSha256AndRejectsMismatch()
+        {
+            var service = new UpdateService();
+            string tempFile = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(tempFile, "Disk Partitioner SHA256 test content");
+
+                // Precalculated SHA256 of "Disk Partitioner SHA256 test content"
+                using var sha256 = System.Security.Cryptography.SHA256.Create();
+                using var stream = File.OpenRead(tempFile);
+                string expectedHash = Convert.ToHexString(sha256.ComputeHash(stream));
+
+                Assert.True(service.VerifyFileHash(tempFile, expectedHash));
+                Assert.True(service.VerifyFileHash(tempFile, expectedHash.ToLowerInvariant())); // case insensitive
+                Assert.False(service.VerifyFileHash(tempFile, "0000000000000000000000000000000000000000000000000000000000000000"));
+                Assert.False(service.VerifyFileHash(tempFile, ""));
+                Assert.False(service.VerifyFileHash("nonexistent_file.bin", expectedHash));
+            }
+            finally
+            {
+                try { File.Delete(tempFile); } catch { }
+            }
+        }
     }
 }
